@@ -29,6 +29,7 @@ GUILE_SOURCES =             \
 
 JSON_SOURCES = \
   aws/api/cloudfront-2019-03-26.normal.json \
+  aws/api/ebs-2019-11-02.normal.json \
   aws/api/ecs-2014-11-13.normal.json \
   aws/api/ec2-2016-11-15.normal.json \
   aws/api/s3-2006-03-01.normal.json

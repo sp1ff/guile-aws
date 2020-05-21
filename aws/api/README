@@ -3,4 +3,4 @@ SDK for JavaScript: https://github.com/aws/aws-sdk-js/tree/master/apis
 
 They are covered under the Apache 2.0 license.
 
-The ECS API was taken from v2.680.0.
+The ECS and EBS APIs were taken from v2.680.0.
