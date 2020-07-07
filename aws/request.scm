@@ -33,8 +33,9 @@
 ;;; Commentary:
 
 ;;; See: http://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
-;;; Make a POST request and pass request parameters in the body of the
-;;; request.  Auth information is provided in an Authorization header.
+;;; Make a request to the AWS API and pass request parameters in the
+;;; body of the request.  Auth information is provided in an
+;;; Authorization header.
 
 ;;; Code:
 
@@ -244,9 +245,13 @@
 
     (call-with-values
         (lambda ()
-          (http-post endpoint
-                     ;#:method (string->symbol method)
-                        #:body (string->utf8 request-parameters)
+          (http-request endpoint
+                        #:method (string->symbol method)
+                        #:body
+                        (match method
+                          ("POST"
+                           (string->utf8 request-parameters))
+                          (_ ""))
                         #:headers new-headers))
       (lambda (response body)
         (xml->sxml (match body
