@@ -151,7 +151,9 @@
     (define request-parameters
       (string-join (cons* (format #f "Action=~a" operation-name)
                           (format #f "Version=~a" api-version)
-                          (serialize-aws-value input))
+                          (if input
+                              (serialize-aws-value input)
+                              '()))
                    "&"))
 
     (define payload-hash
