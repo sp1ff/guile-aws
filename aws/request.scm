@@ -175,6 +175,7 @@
     (define headers
       (filter cdr `((content-type . ,content-type)
                     (host         . (,host . #f))
+                    (x-amz-content-sha256 . ,payload-hash)
                     (x-amz-date   . ,amz-date)
                     (x-amz-target . ,amz-target))))
     (define authorization-header
