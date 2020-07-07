@@ -1,5 +1,5 @@
 ;;; guile-aws --- Scheme DSL for the AWS APIs
-;;; Copyright © 2019 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2019, 2020 Ricardo Wurmus <rekado@elephly.net>
 ;;;
 ;;; Guile-AWS is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published
@@ -46,6 +46,18 @@
 
 (define (hexify bv)
   (format #f "~{~2,'0x~}" (bytevector->u8-list bv)))
+
+;; XXX: Guile's default-val-writer corrupts the Authorization header,
+;; because it wraps the value of the SignedHeaders field in quotes.
+;; This confuses AWS.
+(define (my-default-val-writer k val port)
+  (if (or (string-index val #\,)
+          (string-index val #\"))
+      ((@@ (web http) write-qstring) val port)
+      ((@@ (web http) put-string) port val)))
+(module-set!
+ (resolve-module '(web http))
+ 'default-val-writer my-default-val-writer)
 
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
