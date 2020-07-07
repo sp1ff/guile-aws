@@ -154,6 +154,9 @@
                           (serialize-aws-value input))
                    "&"))
 
+    (define payload-hash
+      (hexify (sha256 (string->utf8 request-parameters))))
+
     (define now (current-date 0))
     (define amz-date
       (date->string now "~Y~m~dT~H~M~SZ"))
@@ -202,8 +205,7 @@
                                  canonical-querystring
                                  canonical-headers
                                  signed-headers
-                                 ;; The payload hash
-                                 (hexify (sha256 (string->utf8 request-parameters))))
+                                 payload-hash)
                            "\n"))
              (credential-scope
               (string-join (list date-stamp
