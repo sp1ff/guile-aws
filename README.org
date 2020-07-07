@@ -1,0 +1,27 @@
+Guile AWS is pre-alpha software.  At the very least it’s yet another demonstration that Guile’s compiler tower can be used to generate an embedded domain specific language from JSON specifications.
+
+The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  Even in the simplest of cases it is verbose:
+
+#+begin_src scheme
+,use (aws api s3-2006-03-01)
+,pp (ListBuckets #f)
+…
+#+end_src
+
+The output is even worse as it is currently unprocessed SXML.
+It may not even work at all, because the AWS APIs are all a little different.
+
+Considering all these caveats there are a couple of obvious things to work on:
+
+** Use the requestUri
+   Since testing began with the EC2 API which only provides operations with the same =requestUri= of “/” the =(aws request)= module never implemented any handling of the =requestUri= field. The S3 API, however, is full of fancy URIs such as ="/{Bucket}/{Key+}?restore"= — it is not clear how to interpret the placeholders.
+** Create aliases
+  The S3 API (for example) defines aliases for some operations, such as “PostObjectRestore” for “RestoreObject”.  The compiler should process the “alias” field.
+** Record possible errors
+The S3 API (for example) defines possible error names.  While their shape is not specified anywhere we should generate values for these error conditions.
+** Do not require an input
+   Some operations don’t require any input, such as =ListBuckets=.  For operations like that we should not be forced to specify #F.
+** Process output shapes
+   We generate types for all defined shapes — including output shapes — but we don’t mashall the output SXML into appropriate Scheme values yet.
+** Turn errors into Scheme conditions
+This is easier said than done because different APIs return different kinds of errors.
