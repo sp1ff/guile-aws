@@ -240,7 +240,7 @@
     ;; signed-headers values, as noted earlier.  Order here is not
     ;; significant.
     (define new-headers
-      (cons `(Authorization . ,authorization-header)
+      (cons `(authorization . ,authorization-header)
             (filter cdr headers)))
 
     (call-with-values
