@@ -1,5 +1,5 @@
 ;;; guile-aws --- Scheme DSL for the AWS APIs
-;;; Copyright © 2019, 2020 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2019, 2020, 2021 Ricardo Wurmus <rekado@elephly.net>
 ;;;
 ;;; Guile-AWS is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published
@@ -26,7 +26,7 @@
   #:use-module (gcrypt hmac)
   #:use-module (rnrs bytevectors)
   #:use-module (web client)
-  #:use-module ((web http) #:select (header-writer))
+  #:use-module ((web http) #:select (header-writer declare-header!))
   #:use-module (sxml simple)
   #:export (make-operation->request serialize-aws-value))
 
@@ -51,14 +51,24 @@
 ;; XXX: Guile's default-val-writer corrupts the Authorization header,
 ;; because it wraps the value of the SignedHeaders field in quotes.
 ;; This confuses AWS.
-(define (my-default-val-writer k val port)
+(define put-string (@@ (web http) put-string))
+(define put-symbol (@@ (web http) put-symbol))
+(define put-char (@@ (web http) put-char))
+(define write-qstring (@@ (web http) write-qstring))
+(define (my-val-writer k val port)
   (if (or (string-index val #\,)
           (string-index val #\"))
-      ((@@ (web http) write-qstring) val port)
-      ((@@ (web http) put-string) port val)))
-(module-set!
- (resolve-module '(web http))
- 'default-val-writer my-default-val-writer)
+      (write-qstring val port)
+      (put-string port val)))
+(declare-header! "authorization"
+                 (@@ (web http) parse-credentials)
+                 (@@ (web http) validate-credentials)
+                 (lambda (val port)
+                   (match val
+                     ((scheme . params)
+                      (put-symbol port scheme)
+                      (put-char port #\space)
+                      ((@@ (web http) write-key-value-list) params port my-val-writer)))))
 
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
