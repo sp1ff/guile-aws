@@ -190,7 +190,8 @@ already mentioned in the request headers."
                          "amazonaws.com")
                    "."))
     (define endpoint
-      (string-append "https://" host "/"))
+      (or (getenv "GUILE_AWS_DEBUG_ENDPOINT")
+          (string-append "https://" host "/")))
     (define json?
       (match (assoc-ref api-metadata 'protocol)
         ("json" #true)
