@@ -134,6 +134,36 @@
                           '()))
                "&"))
 
+(define (aws-value->scm thing)
+  "Transform the potentially nested AWS value THING into an alist,
+which can easily be converted to JSON."
+  (cond
+   ((aws-structure? thing)
+    `((,(format #false "~a" (aws-structure-aws-name thing))
+       .
+       ,(filter-map (lambda (member)
+                      (match (aws-member-value member)
+                        ('__unspecified__ #false)
+                        (value
+                         `(,(format #false "~a"
+                                     (or (aws-member-location-name member)
+                                         (aws-member-name member)))
+                           .
+                           ,(aws-value->scm value)))))
+                    (aws-structure-members thing)))))
+   ((aws-shape? thing)
+    (match (aws-shape-value thing)
+      ((? list? l)
+       (list->vector (map aws-value->scm l)))
+      (x x)))))
+
+(define (request-json-string input)
+  "Return a request JSON block.  Drop the operation name as it is
+already mentioned in the request headers."
+  (match (aws-value->scm input)
+    (((op-name . params))
+     (scm->json-string params))))
+
 (define* (make-operation->request api-metadata)
   "Return a procedure that accepts an operation and returns an HTTP request."
   (define endpoint-prefix
@@ -161,22 +191,29 @@
                    "."))
     (define endpoint
       (string-append "https://" host "/"))
+    (define json?
+      (match (assoc-ref api-metadata 'protocol)
+        ("json" #true)
+        (_ #false)))
     (define content-type
-      '(application/x-www-form-urlencoded (charset . "utf-8")))
+      (if json?
+          `(,(string->symbol
+              (string-append "application/x-amz-json-"
+                             (or (assoc-ref api-metadata 'jsonVersion)
+                                 "1.0")))
+            (charset . "utf-8"))
+          '(application/x-www-form-urlencoded (charset . "utf-8"))))
 
-    ;; DynamoDB needs this, others don't.
+    ;; DynamoDB (and possibly other JSON APIs) needs this, query
+    ;; string APIs do not.
     (define amz-target (and=> (assoc-ref api-metadata 'targetPrefix)
                               (cut string-append <> "."
                                    operation-name)))
 
-    ;; TODO: some APIs use JSON, others (like EC2) use plain query strings.
     (define request-parameters
-      (string-join (cons* (format #f "Action=~a" operation-name)
-                          (format #f "Version=~a" api-version)
-                          (if input
-                              (serialize-aws-value input)
-                              '()))
-                   "&"))
+      (if json?
+          (request-json-string input)
+          (request-query-string operation-name api-version input)))
 
     (define payload-hash
       (hexify (sha256 (string->utf8 request-parameters))))
