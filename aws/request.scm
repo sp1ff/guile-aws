@@ -26,8 +26,10 @@
   #:use-module (gcrypt hmac)
   #:use-module (rnrs bytevectors)
   #:use-module (web client)
+  #:use-module ((web response) #:select (response-content-type))
   #:use-module ((web http) #:select (header-writer declare-header!))
   #:use-module (sxml simple)
+  #:use-module (json)
   #:export (make-operation->request serialize-aws-value))
 
 ;;; Commentary:
@@ -264,7 +266,13 @@
                           (_ ""))
                         #:headers new-headers))
       (lambda (response body)
-        (xml->sxml (match body
-                     ((? bytevector? bv)
-                      (utf8->string bv))
-                     ((? string? s) s)))))))
+        (let ((server-text (match body
+                             ((? bytevector? bv)
+                              (utf8->string bv))
+                             ((? string? s) s))))
+          (match (response-content-type response)
+            (('application/x-amz-json-1.1 . rest)
+             (json-string->scm server-text))
+            (('text/xml . rest)
+             (xml->sxml server-text))
+            (_ server-text)))))))

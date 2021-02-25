@@ -11,5 +11,6 @@ AC_CONFIG_FILES([pre-inst-env], [chmod +x pre-inst-env])
 
 GUILE_PKG([3.0 2.2])
 GUILE_PROGS
+GUILE_MODULE_REQUIRED(json)
 
 AC_OUTPUT
