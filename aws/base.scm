@@ -139,7 +139,7 @@
 
 (define* (aws-operation requester #:key name input-type output-type http documentation)
   (let ((proc
-         (lambda (input)
+         (lambda* (#:optional input)
            (unless (eq? (aws-name input) input-type)
              (error (format #f "~a: input must be of type ~a: ~a~%"
                             name input-type input)))
