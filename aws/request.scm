@@ -125,6 +125,15 @@
                               ".")
                  thing))))
 
+(define (request-query-string operation-name api-version input)
+  "Return a request query string."
+  (string-join (cons* (format #false "Action=~a" operation-name)
+                      (format #false "Version=~a" api-version)
+                      (if input
+                          (serialize-aws-value input)
+                          '()))
+               "&"))
+
 (define* (make-operation->request api-metadata)
   "Return a procedure that accepts an operation and returns an HTTP request."
   (define endpoint-prefix
