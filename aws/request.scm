@@ -157,12 +157,16 @@ which can easily be converted to JSON."
        (list->vector (map aws-value->scm l)))
       (x x)))))
 
+(define (input-arguments->scm input)
+  "Return the arguments of the INPUT value as an alist.  Drop the
+operation name."
+  (match (aws-value->scm input)
+    (((op-name . params)) params)))
+
 (define (request-json-string input)
   "Return a request JSON block.  Drop the operation name as it is
 already mentioned in the request headers."
-  (match (aws-value->scm input)
-    (((op-name . params))
-     (scm->json-string params))))
+  (scm->json-string (input-arguments->scm input)))
 
 (define* (make-operation->request api-metadata)
   "Return a procedure that accepts an operation and returns an HTTP request."
