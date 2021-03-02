@@ -174,6 +174,7 @@ if this is not a primitive data type."
                    (lambda (output)
                      (and=> (assoc-ref output "shape") string->symbol)))
            #:http
+           ;; This includes things like "method", "requestUri", and "responseCode"
            ',(assoc-ref spec "http")
            #:documentation
            ,(assoc-ref spec "documentation")))
