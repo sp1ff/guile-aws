@@ -213,7 +213,7 @@ corresponding value in INPUT."
                    "."))
     (define endpoint
       (or (getenv "GUILE_AWS_DEBUG_ENDPOINT")
-          (string-append "https://" host "/")))
+          (string-append "https://" host)))
     (define json?
       (match (assoc-ref api-metadata 'protocol)
         ("json" #true)
@@ -327,7 +327,7 @@ corresponding value in INPUT."
 
     (call-with-values
         (lambda ()
-          (http-request endpoint
+          (http-request (string-append endpoint canonical-uri)
                         #:method (string->symbol method)
                         #:body
                         (match method
