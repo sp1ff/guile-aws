@@ -168,6 +168,24 @@ operation name."
 already mentioned in the request headers."
   (scm->json-string (input-arguments->scm input)))
 
+(define (parameterize-request-uri request-format-string input)
+  "Process the format string URL in REQUEST-FORMAT-STRING and replace
+all placeholders (strings surrounded by curly braces) with their
+corresponding value in INPUT."
+  (let ((arguments (pk 'args (input-arguments->scm input)))
+        (parts (pk 'parts (string-split request-format-string (char-set #\{ #\})))))
+    ;; Every second item corresponds to a placeholder.
+    (string-join (map (lambda (part index)
+                        (if (odd? index)
+                            (or (assoc-ref arguments part)
+                                (error (format #false
+                                               "Cannot parameterize URL `~a'; missing value `~a'~%"
+                                               request-format-string part)))
+                            part))
+                      parts
+                      (iota (length parts)))
+                 "")))
+
 (define* (make-operation->request api-metadata)
   "Return a procedure that accepts an operation and returns an HTTP request."
   (define endpoint-prefix
@@ -231,10 +249,11 @@ already mentioned in the request headers."
 
     
     ;; https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-
-    ;; TODO: Create canonical URI--the part of the URI from domain to query
-    ;; string (use '/' if no path)
-    (define canonical-uri "/")
+    (define canonical-uri
+      (or (and=> (assoc-ref http "requestUri")
+                 (lambda (format-string)
+                   (parameterize-request-uri format-string input)))
+          "/"))
 
     (define headers
       (filter cdr `((content-type . ,content-type)
