@@ -217,6 +217,7 @@ corresponding value in INPUT."
     (define json?
       (match (assoc-ref api-metadata 'protocol)
         ("json" #true)
+        ("rest-json" #true)
         (_ #false)))
     (define content-type
       (if json?
@@ -337,7 +338,8 @@ corresponding value in INPUT."
                               (utf8->string bv))
                              ((? string? s) s))))
           (match (response-content-type response)
-            (('application/x-amz-json-1.1 . rest)
+            ((or ('application/x-amz-json-1.1 . rest)
+                 ('application/json . rest))
              (json-string->scm server-text))
             (('text/xml . rest)
              (xml->sxml server-text))
