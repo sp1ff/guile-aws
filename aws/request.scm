@@ -329,11 +329,7 @@ corresponding value in INPUT."
         (lambda ()
           (http-request (string-append endpoint canonical-uri)
                         #:method (string->symbol method)
-                        #:body
-                        (match method
-                          ("POST"
-                           (string->utf8 request-parameters))
-                          (_ ""))
+                        #:body (string->utf8 request-parameters)
                         #:headers new-headers))
       (lambda (response body)
         (let ((server-text (match body
