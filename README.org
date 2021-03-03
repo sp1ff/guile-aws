@@ -1,24 +1,108 @@
 Guile AWS is pre-alpha software.  At the very least it’s yet another demonstration that Guile’s compiler tower can be used to generate an embedded domain specific language from JSON specifications.
 
-The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly:
+The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  Here is an example session to create an EFS and make it ready for mounting on an EC2 instance:
 
 #+begin_src scheme
-,use (aws api s3-2006-03-01)
-,pp (ListBuckets)
-…
+(import (aws api elasticfilesystem-2015-02-01))
+
+(CreateFileSystem
+ (CreateFileSystemRequest
+  #:CreationToken (CreationToken "my-guile-aws-filesystem")))
+
+#; (("ThroughputMode" . "bursting")
+ ("Tags" . #())
+ ("SizeInBytes"
+  ("ValueInStandard" . 0)
+  ("ValueInIA" . 0)
+  ("Value" . 0)
+  ("Timestamp" . null))
+ ("ReplicationPolicies" . null)
+ ("ProvisionedThroughputInMibps" . null)
+ ("PerformanceMode" . "generalPurpose")
+ ("OwnerId" . "439516136713")
+ ("NumberOfMountTargets" . 0)
+ ("Name" . null)
+ ("LifeCycleState" . "creating")
+ ("KmsKeyId" . null)
+ ("FileSystemId" . "fs-8bee03d0")
+ ("FileSystemArn"
+  .
+  "arn:aws:elasticfilesystem:eu-central-1:439516136713:file-system/fs-3c759b67")
+ ("Encrypted" . #f)
+ ("CreationToken" . "my-guile-aws-filesystem")
+ ("CreationTime" . 1614808760.0)
+ ("AvailabilityZoneName" . null)
+ ("AvailabilityZoneId" . null))
+
+(CreateAccessPoint
+ (CreateAccessPointRequest
+  #:ClientToken (ClientToken "my-guile-aws-filesystem")
+  #:FileSystemId (FileSystemId "fs-8bee03d0")))
+
+#;
+(("Tags" . #())
+ ("RootDirectory"
+  ("Path" . "/")
+  ("CreationInfo" . null))
+ ("PosixUser" . null)
+ ("OwnerId" . "439516136713")
+ ("Name" . null)
+ ("LifeCycleState" . "creating")
+ ("FileSystemId" . "fs-8bee03d0")
+ ("ClientToken" . "my-guile-aws-filesystem")
+ ("AccessPointId" . "fsap-0d9a986284d086526")
+ ("AccessPointArn"
+  .
+  "arn:aws:elasticfilesystem:eu-central-1:439516136713:access-point/fsap-0d9a986284d086526"))
+
+;; Use the same subnet identifier as your EC2 instances.
+(CreateMountTarget
+ (CreateMountTargetRequest
+  #:FileSystemId (FileSystemId "fs-8bee03d0")
+  #:SubnetId (SubnetId "subnet-7f6a7102")))
+
+#;
+(("VpcId" . "vpc-8e31f4e4")
+ ("SubnetId" . "subnet-7f6a7102")
+ ("OwnerId" . "439516136713")
+ ("NetworkInterfaceId" . "eni-08df70c51f2ecbc33")
+ ("MountTargetId" . "fsmt-023b3e5b")
+ ("LifeCycleState" . "creating")
+ ("IpAddress" . "172.31.44.41")
+ ("FileSystemId" . "fs-3c759b67")
+ ("AvailabilityZoneName" . "eu-central-1b")
+ ("AvailabilityZoneId" . "euc1-az3"))
+
+;; Tear down
+(DeleteMountTarget
+ (DeleteMountTargetRequest
+  #:MountTargetId (MountTargetId "fsmt-284b4e71")))
+
+#; #t
+
+(DeleteAccessPoint
+ (DeleteAccessPointRequest
+  #:AccessPointId (AccessPointId "fsap-0d9a986284d086526")))
+
+#; #t
+
+(DeleteFileSystem
+ (DeleteFileSystemRequest
+  #:FileSystemId (FileSystemId "fs-8bee03d0")))
+
+#; #t
 #+end_src
 
-The output is even worse as it is currently unprocessed SXML.
-It may not even work at all, because the AWS APIs are all a little different.
+The output is pretty bad as it is currently unprocessed SXML or JSON.  It may not even work at all, because the AWS APIs are all a little different.
 
 Considering all these caveats there are a couple of obvious things to work on:
 
-** Use the requestUri
-   Since testing began with the EC2 API which only provides operations with the same =requestUri= of “/” the =(aws request)= module never implemented any handling of the =requestUri= field. The S3 API, however, is full of fancy URIs such as ="/{Bucket}/{Key+}?restore"= — it is not clear how to interpret the placeholders.
+** Extend requestUri formatting
+   The =(aws request)= module interprets the =requestUri= field and substitutes placeholders. However, this was only tested with the EFS API.  The S3 API uses fancier placeholders such as ="/{Bucket}/{Key+}?restore"= — it is not clear yet how to interpret the plus.
 ** Create aliases
   The S3 API (for example) defines aliases for some operations, such as “PostObjectRestore” for “RestoreObject”.  The compiler should process the “alias” field.
 ** Record possible errors
-The S3 API (for example) defines possible error names.  While their shape is not specified anywhere we should generate values for these error conditions.
+The S3 API and the EFS API (for example) define possible error names.  While their shape is not specified anywhere we should generate values for these error conditions.
 ** Process output shapes
    We generate types for all defined shapes — including output shapes — but we don’t mashall the output SXML into appropriate Scheme values yet.
 ** Turn errors into Scheme conditions
