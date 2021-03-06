@@ -172,8 +172,8 @@ already mentioned in the request headers."
   "Process the format string URL in REQUEST-FORMAT-STRING and replace
 all placeholders (strings surrounded by curly braces) with their
 corresponding value in INPUT."
-  (let ((arguments (pk 'args (input-arguments->scm input)))
-        (parts (pk 'parts (string-split request-format-string (char-set #\{ #\})))))
+  (let ((arguments (input-arguments->scm input))
+        (parts (string-split request-format-string (char-set #\{ #\}))))
     ;; Every second item corresponds to a placeholder.
     (string-join (map (lambda (part index)
                         (if (odd? index)
