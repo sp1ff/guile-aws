@@ -30,7 +30,7 @@
   #:use-module ((web http) #:select (header-writer declare-header!))
   #:use-module (sxml simple)
   #:use-module (json)
-  #:export (make-operation->request serialize-aws-value))
+  #:export (make-operation->request))
 
 ;;; Commentary:
 
