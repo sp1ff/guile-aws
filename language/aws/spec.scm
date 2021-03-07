@@ -24,6 +24,8 @@
   #:use-module (system base language)
   #:export (aws))
 
+(define %shape-specs (list))
+
 (define (primitive? exp)
   (member (assoc-ref exp "type")
           '("string"
@@ -109,7 +111,12 @@ if this is not a primitive data type."
 (define (compile-shape-stubs exp)
   "Compile an AWS shape expression EXP to a stub."
   (match exp
-    ((name . _)
+    ((name . spec)
+     ;; Record shape spec for later type checking
+     (set! %shape-specs
+           (acons (string->symbol name)
+                  (alist-delete "documentation" spec)
+                  %shape-specs))
      `(define ,(string->symbol name) #f))))
 
 (define (compile-shape exp)
