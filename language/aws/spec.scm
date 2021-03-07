@@ -148,10 +148,19 @@ if this is not a primitive data type."
                   ;; Type checks
                   ,@(map (match-lambda
                            ((name . spec)
-                            (let ((key-name (string->symbol name)))
+                            (let* ((key-name (string->symbol name))
+                                   (target-shape (string->symbol (assoc-ref spec "shape")))
+                                   (target-spec (assoc-ref %shape-specs target-shape)))
                               `(unless (eq? ,key-name '__unspecified__)
-                                 (ensure ,key-name
-                                         ',(string->symbol (assoc-ref spec "shape")))))))
+                                 ,(if (and=> target-spec primitive?)
+                                      ;; Apply the primitive type
+                                      ;; check directly.  This allows
+                                      ;; us to avoid unnecessary
+                                      ;; wrapping.
+                                      `(,(primitive-type-checker target-spec) ,key-name)
+                                      ;; Otherwise make sure the value has the correct type
+                                      `(ensure ,key-name
+                                               ',(string->symbol (assoc-ref spec "shape"))))))))
                          members)
                   (aws-structure
                    ',scm-name
