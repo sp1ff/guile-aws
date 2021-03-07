@@ -70,13 +70,24 @@ if this is not a primitive data type."
     ("list"
      (let ((member-spec (assoc-ref exp "member")))
        (if member-spec
-           `(lambda (value)
-              (let ((shape ',(string->symbol (assoc-ref member-spec "shape"))))
-                (and (list? value)
-                     (every (lambda (item)
-                              (and=> (aws-name item)
-                                     (cut eq? <> shape)))
-                            value))))
+           (let ((shape-name (string->symbol (assoc-ref member-spec "shape"))))
+             `(lambda (value)
+                (let ((shape ',shape-name))
+                  (and (list? value)
+                       ;; Use the primitive type checker here as well
+                       ;; in case the member spec is a wrapper around
+                       ;; a primitive value.
+                       (every ,(let ((target-spec (assoc-ref %shape-specs shape-name)))
+                                 (if (and=> target-spec primitive?)
+                                     ;; Apply the primitive type check
+                                     ;; directly.  This allows us to
+                                     ;; avoid unnecessary wrapping.
+                                     (primitive-type-checker target-spec)
+                                     ;; Otherwise make sure the value has the correct type
+                                     '(lambda (item)
+                                        (and=> (aws-name item)
+                                               (cut eq? <> shape)))))
+                              value)))))
            'list?)))
     ("map"
      `(lambda (value)
