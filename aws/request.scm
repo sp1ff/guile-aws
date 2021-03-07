@@ -134,28 +134,37 @@
                           '()))
                "&"))
 
-(define (aws-value->scm thing)
+(define* (aws-value->scm thing #:optional strip-name?)
   "Transform the potentially nested AWS value THING into an alist,
 which can easily be converted to JSON."
   (cond
    ((aws-structure? thing)
-    `((,(format #false "~a" (aws-structure-aws-name thing))
-       .
-       ,(filter-map (lambda (member)
-                      (match (aws-member-value member)
-                        ('__unspecified__ #false)
-                        (value
-                         `(,(format #false "~a"
-                                     (or (aws-member-location-name member)
-                                         (aws-member-name member)))
-                           .
-                           ,(aws-value->scm value)))))
-                    (aws-structure-members thing)))))
+    (let ((members
+           (filter-map (lambda (member)
+                         (match (aws-member-value member)
+                           ('__unspecified__ #false)
+                           (value
+                            `(,(format #false "~a"
+                                       (or (aws-member-location-name member)
+                                           (aws-member-name member)))
+                              .
+                              ,(aws-value->scm value)))))
+                       (aws-structure-members thing))))
+      (if strip-name?
+          members
+          `((,(format #false "~a" (aws-structure-aws-name thing))
+             . ,members)))))
    ((aws-shape? thing)
     (match (aws-shape-value thing)
       ((? list? l)
        (list->vector (map aws-value->scm l)))
-      (x x)))))
+      (x x)))
+   ;; TODO: what about the primitive "map" type?  That would also
+   ;; appear as a pair, wouldn't it?
+   ((pair? thing)
+    (list->vector (map (cut aws-value->scm <> 'strip-name) thing)))
+   ;; Other primitive value, e.g. string or boolean
+   (else thing)))
 
 (define (input-arguments->scm input)
   "Return the arguments of the INPUT value as an alist.  Drop the
