@@ -200,6 +200,10 @@ if this is not a primitive data type."
           (aws-operation
            operation->request
            #:name ,name
+           #:input-constructor
+           ,(and=> (assoc-ref spec "input")
+                   (lambda (input)
+                     (and=> (assoc-ref input "shape") string->symbol)))
            #:input-type
            ',(and=> (assoc-ref spec "input")
                     (lambda (input)

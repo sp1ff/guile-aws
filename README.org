@@ -1,13 +1,12 @@
 Guile AWS is pre-alpha software.  At the very least it’s yet another demonstration that Guile’s compiler tower can be used to generate an embedded domain specific language from JSON specifications.
 
-The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  Here is an example session to create an EFS and make it ready for mounting on an EC2 instance:
+Here is an example session to create an EFS and make it ready for mounting on an EC2 instance:
 
 #+begin_src scheme
 (import (aws api elasticfilesystem-2015-02-01))
 
 (CreateFileSystem
- (CreateFileSystemRequest
-  #:CreationToken (CreationToken "my-guile-aws-filesystem")))
+ #:CreationToken "my-guile-aws-filesystem")
 
 #; (("ThroughputMode" . "bursting")
  ("Tags" . #())
@@ -35,9 +34,8 @@ The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  H
  ("AvailabilityZoneId" . null))
 
 (CreateAccessPoint
- (CreateAccessPointRequest
-  #:ClientToken (ClientToken "my-guile-aws-filesystem")
-  #:FileSystemId (FileSystemId "fs-8bee03d0")))
+ #:ClientToken "my-guile-aws-filesystem"
+ #:FileSystemId "fs-8bee03d0")
 
 #;
 (("Tags" . #())
@@ -57,9 +55,8 @@ The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  H
 
 ;; Use the same subnet identifier as your EC2 instances.
 (CreateMountTarget
- (CreateMountTargetRequest
-  #:FileSystemId (FileSystemId "fs-8bee03d0")
-  #:SubnetId (SubnetId "subnet-7f6a7102")))
+ #:FileSystemId "fs-8bee03d0"
+ #:SubnetId "subnet-7f6a7102")
 
 #;
 (("VpcId" . "vpc-8e31f4e4")
@@ -75,25 +72,34 @@ The DSL Guile AWS produces is unpolished and thus pretty repetitive and ugly.  H
 
 ;; Tear down
 (DeleteMountTarget
- (DeleteMountTargetRequest
-  #:MountTargetId (MountTargetId "fsmt-284b4e71")))
+ #:MountTargetId "fsmt-284b4e71")
 
 #; #t
 
 (DeleteAccessPoint
- (DeleteAccessPointRequest
-  #:AccessPointId (AccessPointId "fsap-0d9a986284d086526")))
+ #:AccessPointId "fsap-0d9a986284d086526")
 
 #; #t
 
 (DeleteFileSystem
- (DeleteFileSystemRequest
-  #:FileSystemId (FileSystemId "fs-8bee03d0")))
+ #:FileSystemId "fs-8bee03d0")
 
 #; #t
 #+end_src
 
-The output is pretty bad as it is currently unprocessed SXML or JSON.  It may not even work at all, because the AWS APIs are all a little different.
+You can also separate the request definition from submitting the request.  This is useful if you want your requests type-checked well before even getting near to submission:
+
+#+begin_src scheme
+;; This is type-checked right away, so any errors will show up here.
+(define req
+  (DeleteFileSystemRequest
+   #:FileSystemId "fs-8bee03d0"))
+
+;; Actually submit the request
+(DeleteFileSystem req)
+#+end_src
+
+As you can see, the output is pretty bad as it is currently unprocessed SXML or JSON.  It may not even work at all, because the AWS APIs are all a little different.
 
 Considering all these caveats there are a couple of obvious things to work on:
 

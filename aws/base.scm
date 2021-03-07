@@ -1,5 +1,5 @@
 ;;; guile-aws --- Scheme DSL for the AWS APIs
-;;; Copyright © 2019 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2019, 2021 Ricardo Wurmus <rekado@elephly.net>
 ;;;
 ;;; Guile-AWS is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published
@@ -137,14 +137,30 @@
                    value type))))
 
 
-(define* (aws-operation requester #:key name input-type output-type http documentation)
+(define* (aws-operation requester
+                        #:key
+                        name
+                        input-constructor
+                        input-type
+                        output-type
+                        http documentation)
   (let ((proc
-         (lambda* (#:optional input)
-           (unless (eq? (aws-name input) input-type)
-             (error (format #f "~a: input must be of type ~a: ~a~%"
-                            name input-type input)))
-           ;; TODO: do something with the response!
-           (requester #:http http #:operation-name name #:input input))))
+         (lambda args
+           (let ((input*
+                  (match args
+                    ;; Accept a keyword list and pass it to the
+                    ;; appropriate constructor.
+                    (((? keyword?) . rest)
+                     (apply input-constructor args))
+                    ;; Otherwise type check the input
+                    ((input)
+                     (unless (eq? (aws-name input) input-type)
+                       (error (format #f "~a: input must be of type ~a: ~a~%"
+                                      name input-type input)))
+                     input)
+                    (() #false))))
+             ;; TODO: do something with the response!
+             (requester #:http http #:operation-name name #:input input*)))))
     (set-procedure-property! proc 'documentation documentation)
     (set-procedure-property! proc 'name name)
     proc))
