@@ -113,3 +113,5 @@ The S3 API and the EFS API (for example) define possible error names.  While the
    We generate types for all defined shapes — including output shapes — but we don’t mashall the output SXML into appropriate Scheme values yet.
 ** Turn errors into Scheme conditions
 This is easier said than done because different APIs return different kinds of errors.
+** TODO Respect “location” and “locationName”
+In the S3 API some values have a “location” property with value “header”, others with “querystring”.  These values must appear in the headers or the querystring, respectively, and should not be added to the body.
