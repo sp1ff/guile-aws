@@ -5,11 +5,22 @@ Here is an example session to create an EFS and make it ready for mounting on an
 #+begin_src scheme
 (import (aws api elasticfilesystem-2015-02-01))
 
-(CreateFileSystem
- #:CreationToken "my-guile-aws-filesystem")
+(setenv "AWS_DEFAULT_REGION" "eu-central-1")
+(setenv "AWS_SECRET_ACCESS_KEY" "…")
+(setenv "AWS_ACCESS_KEY_ID" "AKIA…")
 
-#; (("ThroughputMode" . "bursting")
- ("Tags" . #())
+;; Create a file system with this unique creation token.
+(CreateFileSystem
+ #:CreationToken "my-guile-aws-filesystem"
+ #:Tags (list (Tag #:Key "project" #:Value "guile-aws")
+              (Tag #:Key "type" #:Value "test")))
+
+#;
+(("ThroughputMode" . "bursting")
+ ("Tags"
+  .
+  #((("Value" . "guile-aws") ("Key" . "project"))
+    (("Value" . "test") ("Key" . "type"))))
  ("SizeInBytes"
   ("ValueInStandard" . 0)
   ("ValueInIA" . 0)
@@ -26,12 +37,25 @@ Here is an example session to create an EFS and make it ready for mounting on an
  ("FileSystemId" . "fs-8bee03d0")
  ("FileSystemArn"
   .
-  "arn:aws:elasticfilesystem:eu-central-1:439516136713:file-system/fs-3c759b67")
+  "arn:aws:elasticfilesystem:eu-central-1:439516136713:file-system/fs-8bee03d0")
  ("Encrypted" . #f)
  ("CreationToken" . "my-guile-aws-filesystem")
- ("CreationTime" . 1614808760.0)
+ ("CreationTime" . 1615285393.0)
  ("AvailabilityZoneName" . null)
  ("AvailabilityZoneId" . null))
+
+;; Save costs by transitioning to the Infrequent Access
+;; storage class as soon as possible.
+(PutLifecycleConfiguration
+ #:FileSystemId "fs-8bee03d0"
+ #:LifecyclePolicies
+ (list (LifecyclePolicy
+        #:TransitionToIA "AFTER_7_DAYS")))
+
+#;
+(("LifecyclePolicies"
+  .
+  #((("TransitionToIA" . "AFTER_7_DAYS")))))
 
 (CreateAccessPoint
  #:ClientToken "my-guile-aws-filesystem"
@@ -66,13 +90,13 @@ Here is an example session to create an EFS and make it ready for mounting on an
  ("MountTargetId" . "fsmt-023b3e5b")
  ("LifeCycleState" . "creating")
  ("IpAddress" . "172.31.44.41")
- ("FileSystemId" . "fs-3c759b67")
+ ("FileSystemId" . "fs-8bee03d0")
  ("AvailabilityZoneName" . "eu-central-1b")
  ("AvailabilityZoneId" . "euc1-az3"))
 
 ;; Tear down
 (DeleteMountTarget
- #:MountTargetId "fsmt-284b4e71")
+ #:MountTargetId "fsmt-023b3e5b")
 
 #; #t
 
