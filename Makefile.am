@@ -19,7 +19,7 @@ SUFFIXES = .scm .go
 	$(AM_V_GEN)$(top_builddir)/pre-inst-env $(GUILE_TOOLS) compile $(GUILE_WARNINGS) -o "$@" "$<"
 
 moddir=$(prefix)/share/guile/site/$(GUILE_EFFECTIVE_VERSION)
-godir=$(libdir)/guile/$(GUILE_EFFECTIVE_VERSION)/ccache
+godir=$(libdir)/guile/$(GUILE_EFFECTIVE_VERSION)/site-ccache
 
 GUILE_SOURCES =             \
   aws/base.scm              \
