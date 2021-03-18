@@ -25,58 +25,55 @@
             aws-value->scm))
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
-(define* (serialize-aws-value thing #:key (path '()) n (depth 0))
-  (define top? (zero? depth))
-  (cond
-   ((aws-structure? thing)
-    (filter-map (lambda (member)
-                  (match (aws-member-value member)
-                    ('__unspecified__ #f)
-                    (value
-                     (serialize-aws-value value
-                                          #:path
-                                          (if top?
-                                              (list (or (aws-member-location-name member)
-                                                        (aws-member-name member)))
-                                              (cons* (or (aws-member-location-name member)
-                                                         (aws-member-name member))
-                                                     n
-                                                     (aws-structure-aws-name thing)
-                                                     path))
-                                          #:depth
-                                          (1+ depth)))))
-                (aws-structure-members thing)))
-   ((aws-shape? thing)
-    (cond
-     ((aws-shape-primitive? thing)
-      (serialize-aws-value (aws-shape-value thing)
-                           #:path path
-                           #:depth (1+ depth)))
-     (else
-      (serialize-aws-value (aws-shape-value thing)
-                           #:path
-                           (cons (or (aws-shape-location-name thing)
-                                     (aws-shape-aws-name thing)) path)
-                           #:depth (1+ depth)))))
-   ((boolean? thing)
-    (serialize-aws-value (or (and thing "true") "false")
-                         #:path path
-                         #:depth (1+ depth)))
-   ((list? thing)
-    (apply append
-           (map (lambda (item n)
-                  (serialize-aws-value item
-                                       #:path path
-                                       #:n n
-                                       #:depth (1+ depth)))
-                thing
-                (iota (length thing) 1))))
-   (else
-    (format #f "~a=~a"
-            (string-join (map (cut format #f "~a" <>)
-                              (reverse (filter identity path)))
-                         ".")
-            thing))))
+(define* (serialize-aws-value thing)
+  (define inner
+    (lambda (path thing)
+      (cond
+       ((aws-structure? thing)
+        ;; Operate on members
+        (let ((provided-members
+               (remove (lambda (member)
+                         (eq? '__unspecified__ (aws-member-value member)))
+                       (aws-structure-members thing))))
+          (map (lambda (member)
+                 (inner (cons (or (aws-member-location-name member)
+                                  (aws-member-name member))
+                              path)
+                        (aws-member-value member)))
+               provided-members)))
+
+       ((aws-shape? thing)
+        (cond
+         ((aws-shape-primitive? thing)
+          (inner path (aws-shape-value thing)))
+         (else
+          (inner (cons (or (aws-shape-location-name thing)
+                           (aws-shape-aws-name thing))
+                       path)
+                 (aws-shape-value thing)))))
+
+       ((boolean? thing)
+        (inner path (or (and thing "true") "false")))
+
+       ((list? thing)
+        (map (lambda (item n)
+               (inner (cons n path) item))
+             thing
+             (iota (length thing) 1)))
+
+       (else
+        (format #false "~{~a~^.~}=~a"
+                (reverse (filter identity path))
+                thing)))))
+  (define (flatten lst)
+    (match lst
+      (() '())
+      ((first . rest)
+       ((@ (guile) append)
+        (flatten first)
+        (flatten rest)))
+      (_ (list lst))))
+  (flatten (inner '() thing)))
 
 (define* (aws-value->scm thing #:optional strip-name?)
   "Transform the potentially nested AWS value THING into an alist,
