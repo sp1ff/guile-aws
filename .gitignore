@@ -9,3 +9,6 @@ configure
 pre-inst-env
 *.go
 upstream-json-specs
+tests/*.log
+tests/*.trs
+test-suite.log
