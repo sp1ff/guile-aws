@@ -23,6 +23,7 @@ godir=$(libdir)/guile/$(GUILE_EFFECTIVE_VERSION)/site-ccache
 
 GUILE_SOURCES =             \
   aws/base.scm              \
+  aws/serialize.scm         \
   aws/request.scm           \
   aws/utils/json.scm        \
   language/aws/spec.scm

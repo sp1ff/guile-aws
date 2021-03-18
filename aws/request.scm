@@ -17,6 +17,7 @@
 
 (define-module (aws request)
   #:use-module (aws base)
+  #:use-module (aws serialize)
   #:use-module (ice-9 match)
   #:use-module (ice-9 format)
   #:use-module (srfi srfi-1)
@@ -73,58 +74,6 @@
                       ((@@ (web http) write-key-value-list) params port my-val-writer)))))
 
 
-;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
-(define* (serialize-aws-value thing #:key (path '()) n (depth 0))
-  (define top? (zero? depth))
-  (cond
-   ((aws-structure? thing)
-    (filter-map (lambda (member)
-                  (match (aws-member-value member)
-                    ('__unspecified__ #f)
-                    (value
-                     (serialize-aws-value value
-                                          #:path
-                                          (if top?
-                                              (list (or (aws-member-location-name member)
-                                                        (aws-member-name member)))
-                                              (cons* (or (aws-member-location-name member)
-                                                         (aws-member-name member))
-                                                     n
-                                                     (aws-structure-aws-name thing)
-                                                     path))
-                                          #:depth
-                                          (1+ depth)))))
-                (aws-structure-members thing)))
-   ((aws-shape? thing)
-    (cond
-     ((aws-shape-primitive? thing)
-      (serialize-aws-value (aws-shape-value thing)
-                           #:path path
-                           #:depth (1+ depth)))
-     (else
-      (serialize-aws-value (aws-shape-value thing)
-                           #:path
-                           (cons (or (aws-shape-location-name thing)
-                                     (aws-shape-aws-name thing)) path)
-                           #:depth (1+ depth)))))
-   ((boolean? thing)
-    (serialize-aws-value (or (and thing "true") "false")
-                         #:path path
-                         #:depth (1+ depth)))
-   ((list? thing)
-    (append-map (lambda (item n)
-                  (serialize-aws-value item
-                                       #:path path
-                                       #:n n
-                                       #:depth (1+ depth)))
-                thing
-                (iota (length thing) 1)))
-   (else (format #f "~a=~a"
-                 (string-join (map (cut format #f "~a" <>)
-                                   (reverse (filter identity path)))
-                              ".")
-                 thing))))
-
 (define (request-query-string operation-name api-version input)
   "Return a request query string."
   (string-join (cons* (format #false "Action=~a" operation-name)
@@ -133,38 +82,6 @@
                           (serialize-aws-value input)
                           '()))
                "&"))
-
-(define* (aws-value->scm thing #:optional strip-name?)
-  "Transform the potentially nested AWS value THING into an alist,
-which can easily be converted to JSON."
-  (cond
-   ((aws-structure? thing)
-    (let ((members
-           (filter-map (lambda (member)
-                         (match (aws-member-value member)
-                           ('__unspecified__ #false)
-                           (value
-                            `(,(format #false "~a"
-                                       (or (aws-member-location-name member)
-                                           (aws-member-name member)))
-                              .
-                              ,(aws-value->scm value)))))
-                       (aws-structure-members thing))))
-      (if strip-name?
-          members
-          `((,(format #false "~a" (aws-structure-aws-name thing))
-             . ,members)))))
-   ((aws-shape? thing)
-    (match (aws-shape-value thing)
-      ((? list? l)
-       (list->vector (map aws-value->scm l)))
-      (x x)))
-   ;; TODO: what about the primitive "map" type?  That would also
-   ;; appear as a pair, wouldn't it?
-   ((pair? thing)
-    (list->vector (map (cut aws-value->scm <> 'strip-name) thing)))
-   ;; Other primitive value, e.g. string or boolean
-   (else thing)))
 
 (define (input-arguments->scm input)
   "Return the arguments of the INPUT value as an alist.  Drop the
