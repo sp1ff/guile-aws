@@ -44,3 +44,25 @@ $(JSON_SOURCES:.normal.json=.go): %.go: %.normal.json aws/base.scm language/aws/
 
 
 SOURCES = $(GUILE_SOURCES) $(JSON_SOURCES)
+
+TEST_EXTENSIONS = .scm
+
+SCM_TESTS = \
+  tests/serialize.scm
+
+TESTS = $(SCM_TESTS)
+
+EXTRA_DIST += $(TESTS)
+
+AM_TESTS_ENVIRONMENT = abs_top_srcdir="$(abs_top_srcdir)" GUILE_AUTO_COMPILE=0
+
+SCM_LOG_DRIVER =                                          \
+  $(top_builddir)/pre-inst-env                            \
+  $(GUILE) --no-auto-compile -e main                      \
+      $(top_srcdir)/build-aux/test-driver.scm
+
+AM_SCM_LOG_DRIVER_FLAGS = --brief=yes
+
+EXTRA_DIST +=					\
+  pre-inst-env.in				\
+  build-aux/test-driver.scm
