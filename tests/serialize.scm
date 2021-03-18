@@ -54,15 +54,15 @@ given by REPLACEMENT."
 
 (test-equal "simple query serialization with nested structures"
   '("ImageId=ami-72aa081b" "MaxCount=1" "MinCount=1"
-    "TagSpecification.1.resourceType=instance"
-    "TagSpecification.1.Tag.1.key=project"
-    "TagSpecification.1.Tag.1.value=pigx-web"
-    "TagSpecification.1.Tag.2.key=pigx-web:resource"
-    "TagSpecification.1.Tag.2.value=user-vm"
-    "TagSpecification.1.Tag.3.key=pigx-web:username"
-    "TagSpecification.1.Tag.3.value=username"
-    "TagSpecification.1.Tag.4.key=pigx-web:project"
-    "TagSpecification.1.Tag.4.value=project")
+    "TagSpecification.1.ResourceType=instance"
+    "TagSpecification.1.Tag.1.Key=project"
+    "TagSpecification.1.Tag.1.Value=pigx-web"
+    "TagSpecification.1.Tag.2.Key=pigx-web:resource"
+    "TagSpecification.1.Tag.2.Value=user-vm"
+    "TagSpecification.1.Tag.3.Key=pigx-web:username"
+    "TagSpecification.1.Tag.3.Value=username"
+    "TagSpecification.1.Tag.4.Key=pigx-web:project"
+    "TagSpecification.1.Tag.4.Value=project")
   (serialize-aws-value (RunInstancesRequest
                         #:ImageId "ami-72aa081b"
                         #:MinCount 1

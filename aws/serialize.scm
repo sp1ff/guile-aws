@@ -26,6 +26,16 @@
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
 (define* (serialize-aws-value thing)
+  ;; XXX: I don't know why this is necessary, but it seems to be
+  ;; required that the locationName begin with an uppercase letter.
+  ;; There is nothing in the specification that would hint at this,
+  ;; but testing against the AWS API have revealed this to be the
+  ;; case.  This is at least true for "Value" and "Key" of a "Tag"
+  ;; value, and for "ResourceType" of a "TagSpecification".
+  (define (up string)
+    (let ((s (format #false "~a" string)))
+      (string-set! s 0 (char-upcase (string-ref s 0)))
+      s))
   (define inner
     (lambda (path thing)
       (cond
@@ -63,7 +73,7 @@
 
        (else
         (format #false "~{~a~^.~}=~a"
-                (reverse (filter identity path))
+                (map up (reverse (filter identity path)))
                 thing)))))
   (define (flatten lst)
     (match lst
