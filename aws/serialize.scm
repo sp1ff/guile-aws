@@ -26,6 +26,8 @@
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
 (define* (serialize-aws-value thing)
+  "Return a list of strings that together should form the request
+query string for THING, an AWS value."
   ;; XXX: I don't know why this is necessary, but it seems to be
   ;; required that the locationName begin with an uppercase letter.
   ;; There is nothing in the specification that would hint at this,
