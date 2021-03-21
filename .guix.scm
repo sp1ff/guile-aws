@@ -35,7 +35,7 @@
 (define guile-aws
   (package
     (name "guile-aws")
-    (version "dev"
+    (version "dev")
     (source #false)
     (build-system gnu-build-system)
     (native-inputs
