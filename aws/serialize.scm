@@ -22,7 +22,8 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-26)
   #:export (serialize-aws-value
-            aws-value->scm))
+            aws-value->scm
+            aws-value->sxml))
 
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
 (define* (serialize-aws-value thing)
@@ -116,5 +117,38 @@ which can easily be converted to JSON."
    ;; appear as a pair, wouldn't it?
    ((pair? thing)
     (list->vector (map (cut aws-value->scm <> 'strip-name) thing)))
+   ;; Other primitive value, e.g. string or boolean
+   (else thing)))
+
+(define* (aws-value->sxml thing #:optional strip-name?)
+  "Transform the potentially nested AWS value THING into an sxml expression,
+which can easily be converted to XML."
+  (cond
+   ((aws-structure? thing)
+    (let ((members
+           (filter-map (lambda (member)
+                         ;; TODO: skip members that have "location=uri"
+                         (let ((location (aws-member-location member)))
+                           (if (and location
+                                    (string=? location "uri"))
+                               #false
+                               (match (aws-member-value member)
+                                 ('__unspecified__ #false)
+                                 (value
+                                  `(,(or (aws-member-location-name member)
+                                         (aws-member-name member))
+                                    ,(aws-value->sxml value 'strip)))))))
+                       (aws-structure-members thing))))
+      (if strip-name?
+          members
+          `((,(aws-structure-aws-name thing) ,members)))))
+   ((aws-shape? thing)
+    (match (aws-shape-value thing)
+      ((? list? l) (map aws-value->sxml l))
+      (x x)))
+   ;; TODO: what about the primitive "map" type?  That would also
+   ;; appear as a pair, wouldn't it?
+   ((pair? thing)
+    (map aws-value->sxml thing))
    ;; Other primitive value, e.g. string or boolean
    (else thing)))

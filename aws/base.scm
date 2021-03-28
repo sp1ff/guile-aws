@@ -143,6 +143,7 @@
                         input-constructor
                         input-type
                         output-type
+                        xml-namespace
                         http documentation)
   (let ((proc
          (lambda args
@@ -160,7 +161,10 @@
                      input)
                     (() #false))))
              ;; TODO: do something with the response!
-             (requester #:http http #:operation-name name #:input input*)))))
+             (requester #:http http
+                        #:xml-namespace xml-namespace
+                        #:operation-name name
+                        #:input input*)))))
     (set-procedure-property! proc 'documentation documentation)
     (set-procedure-property! proc 'name name)
     proc))

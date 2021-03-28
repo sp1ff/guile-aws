@@ -94,6 +94,23 @@ operation name."
 already mentioned in the request headers."
   (scm->json-string (input-arguments->scm input)))
 
+(define (request-xml-string xmlns input)
+  "Return a request payload in XML format.  Include the URI of the XML
+namespace provided in the alist XMLNS."
+  (let* ((tree (aws-value->sxml input))
+         (tree-with-ns
+          (match tree
+            (((first . rest))
+             (let ((ns-uri
+                    (and=> xmlns (lambda (ns)
+                                   (assoc-ref ns "uri")))))
+               (if ns-uri
+                   (list (cons* first `(@ (xmlns ,ns-uri)) rest))
+                   tree))))))
+    (call-with-output-string
+      (lambda (port)
+        (sxml->xml tree-with-ns port)))))
+
 (define (parameterize-request-uri request-format-string input)
   "Process the format string URL in REQUEST-FORMAT-STRING and replace
 all placeholders (strings surrounded by curly braces) with their
@@ -120,7 +137,10 @@ corresponding value in INPUT."
   (define api-version
     (assoc-ref api-metadata 'apiVersion))
 
-  (lambda* (#:key http operation-name input)
+  (lambda* (#:key
+            http operation-name
+            xml-namespace
+            input)
     (define region
       (or (getenv "AWS_DEFAULT_REGION")
           "us-west-2"))
@@ -133,17 +153,17 @@ corresponding value in INPUT."
     (define method
       (assoc-ref http "method"))
     (define host
-      (string-join (list endpoint-prefix
-                         region
-                         "amazonaws.com")
-                   "."))
+      (or (assoc-ref api-metadata 'globalEndpoint)
+          (string-join (list endpoint-prefix
+                             region
+                             "amazonaws.com")
+                       ".")))
     (define endpoint
       (or (getenv "GUILE_AWS_DEBUG_ENDPOINT")
           (string-append "https://" host)))
     (define json?
       (match (assoc-ref api-metadata 'protocol)
-        ("json" #true)
-        ("rest-json" #true)
+        ((or "json" "rest-json") #true)
         (_ #false)))
     (define content-type
       (if json?
@@ -161,9 +181,14 @@ corresponding value in INPUT."
                                    operation-name)))
 
     (define request-parameters
-      (if json?
-          (request-json-string input)
-          (request-query-string operation-name api-version input)))
+      (match (assoc-ref api-metadata 'protocol)
+        ((or "json"
+             "rest-json")
+         (request-json-string input))
+        ("rest-xml"
+         (request-xml-string xml-namespace input))
+        (_
+         (request-query-string operation-name api-version input))))
 
     (define payload-hash
       (hexify (sha256 (string->utf8 request-parameters))))

@@ -35,7 +35,8 @@ JSON_SOURCES = \
   aws/api/ecr-2015-09-21.normal.json \
   aws/api/ecs-2014-11-13.normal.json \
   aws/api/ec2-2016-11-15.normal.json \
-  aws/api/s3-2006-03-01.normal.json
+  aws/api/s3-2006-03-01.normal.json \
+  aws/api/route53-2013-04-01.normal.json
 
 $(JSON_SOURCES:.normal.json=.go): %.go: %.normal.json aws/base.scm language/aws/spec.scm
 	$(AM_V_GEN)$(top_builddir)/pre-inst-env $(GUILE_TOOLS) \

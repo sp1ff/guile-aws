@@ -212,6 +212,10 @@ if this is not a primitive data type."
            ',(and=> (assoc-ref spec "output")
                    (lambda (output)
                      (and=> (assoc-ref output "shape") string->symbol)))
+           #:xml-namespace
+           ',(and=> (assoc-ref spec "input")
+                    (lambda (input)
+                      (assoc-ref input "xmlNamespace")))
            #:http
            ;; This includes things like "method", "requestUri", and "responseCode"
            ',(assoc-ref spec "http")
