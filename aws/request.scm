@@ -31,7 +31,11 @@
   #:use-module ((web http) #:select (header-writer declare-header!))
   #:use-module (sxml simple)
   #:use-module (json)
-  #:export (make-operation->request))
+  #:export (%aws-default-region
+            %aws-access-key
+            %aws-secret-access-key
+
+            make-operation->request))
 
 ;;; Commentary:
 
@@ -41,6 +45,16 @@
 ;;; Authorization header.
 
 ;;; Code:
+
+(define %aws-default-region
+  (make-parameter (or (getenv "AWS_DEFAULT_REGION")
+                      "us-west-2")))
+
+(define %aws-access-key
+  (make-parameter (getenv "AWS_ACCESS_KEY_ID")))
+
+(define %aws-secret-access-key
+  (make-parameter (getenv "AWS_SECRET_ACCESS_KEY")))
 
 (define algorithm "AWS4-HMAC-SHA256")
 
@@ -141,14 +155,12 @@ corresponding value in INPUT."
             http operation-name
             xml-namespace
             input)
-    (define region
-      (or (getenv "AWS_DEFAULT_REGION")
-          "us-west-2"))
+    (define region (%aws-default-region))
     (define access-key
-      (or (getenv "AWS_ACCESS_KEY_ID")
+      (or (%aws-access-key)
           (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable.")))
     (define secret-key
-      (or (getenv "AWS_SECRET_ACCESS_KEY")
+      (or (%aws-secret-access-key)
           (error "No secret access key available.  Set the AWS_SECRET_ACCESS_KEY environment variable.")))
     (define method
       (assoc-ref http "method"))
