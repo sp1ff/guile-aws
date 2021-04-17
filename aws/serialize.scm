@@ -25,6 +25,10 @@
             aws-value->scm
             aws-value->sxml))
 
+;; List of types whose constructor should not be serialized
+(define %skip
+  '(Expression TagValues DateInterval)) ; ce API
+
 ;; See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
 (define* (serialize-aws-value thing)
   "Return a list of strings that together should form the request
@@ -104,7 +108,7 @@ which can easily be converted to JSON."
                               .
                               ,(aws-value->scm value)))))
                        (aws-structure-members thing))))
-      (if strip-name?
+      (if (or strip-name? (member (aws-structure-aws-name thing) %skip))
           members
           `((,(format #false "~a" (aws-structure-aws-name thing))
              . ,members)))))

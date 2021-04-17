@@ -29,6 +29,7 @@ GUILE_SOURCES =             \
   language/aws/spec.scm
 
 JSON_SOURCES = \
+  aws/api/ce-2017-10-25.normal.json \
   aws/api/cloudfront-2019-03-26.normal.json \
   aws/api/ebs-2019-11-02.normal.json \
   aws/api/elasticfilesystem-2015-02-01.normal.json \
