@@ -35,6 +35,8 @@
             %aws-access-key
             %aws-secret-access-key
 
+            compute-signature
+            sign-headers
             make-operation->request))
 
 ;;; Commentary:
@@ -56,7 +58,7 @@
 (define %aws-secret-access-key
   (make-parameter (getenv "AWS_SECRET_ACCESS_KEY")))
 
-(define algorithm "AWS4-HMAC-SHA256")
+(define %algorithm "AWS4-HMAC-SHA256")
 
 (define (sign key msg)
   "Sign the string MSG with the secret key KEY (a bytevector) using the SHA256 algorithm."
@@ -143,6 +145,108 @@ corresponding value in INPUT."
                       (iota (length parts)))
                  "")))
 
+(define* (compute-signature string-to-sign
+                            #:key
+                            (aws-secret-key (%aws-secret-access-key))
+                            (aws-region (%aws-default-region))
+                            aws-service-name)
+  "Compute the AWS signature over STRING-TO-SIGN with the provided
+SECRET-KEY, and for the given AWS-SERVICE-NAME.  All arguments are
+strings."
+  (unless aws-secret-key
+    (error "No secret access key available.  Set the AWS_SECRET_ACCESS_KEY environment variable."))
+  (let* ((now         (current-date 0))
+         (date-stamp  (date->string now "~Y~m~d"))
+         (kdate       (sign (string->utf8
+                             (string-append "AWS4" aws-secret-key))
+                            date-stamp))
+         (kregion     (sign kdate aws-region))
+         (kservice    (sign kregion aws-service-name))
+         (signing-key (sign kservice "aws4_request")))
+    (hexify (sign signing-key string-to-sign))))
+
+(define* (sign-headers headers
+                       #:key
+                       (method "GET")
+                       (canonical-querystring "")
+                       canonical-uri
+                       payload-hash
+                       service-name
+                       (region (%aws-default-region))
+                       (secret-key (%aws-secret-access-key))
+                       (access-key (%aws-access-key)))
+  "Given a bunch of headers as an alist, return a new alist of headers
+that includes the authorization and x-amz-date headers.  This can be
+used for presigned URLs."
+  (unless secret-key
+    (error "No secret access key available.  Set the AWS_SECRET_ACCESS_KEY environment variable."))
+  (unless access-key
+    (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable."))
+  (unless service-name
+    (error "Must provide service-name."))
+  (let* ((now (current-date 0))
+         (amz-date (date->string now "~Y~m~dT~H~M~SZ"))
+         (date-stamp (date->string now "~Y~m~d"))
+         (headers
+          (cons `(x-amz-date . ,amz-date)
+                headers))
+         (canonical-headers
+          ;; Header names must be trimmed, lower-case, sorted in
+          ;; code point order from low to high!  Note: there must
+          ;; be a trailing newline character.
+          (string-join (map (match-lambda
+                              ((key . value)
+                               (string-append (symbol->string key) ":"
+                                              (with-output-to-string
+                                                (lambda ()
+                                                  ((header-writer key) value (current-output-port)))))))
+                            headers)
+                       "\n" 'suffix))
+         (signed-headers
+          ;; This lists the headers in the canonical-headers list,
+          ;; delimited with ";" and in alpha order.  The request
+          ;; can include any headers; canonical-headers and
+          ;; signed-headers include those that you want to be
+          ;; included in the hash of the request. "Host" and
+          ;; "x-amz-date" are always required.
+          (string-join (map (compose symbol->string first) headers) ";"))
+         (canonical-request
+          (string-join (list method
+                             canonical-uri
+                             canonical-querystring
+                             canonical-headers
+                             signed-headers
+                             payload-hash)
+                       "\n"))
+         (credential-scope
+          (string-join (list date-stamp
+                             region
+                             service-name
+                             "aws4_request") "/"))
+         (string-to-sign
+          (string-join (list %algorithm
+                             amz-date
+                             credential-scope
+                             (hexify (sha256 (string->utf8 canonical-request))))
+                       "\n"))
+         (signature
+          (compute-signature string-to-sign
+                             #:aws-secret-key secret-key
+                             #:aws-region region
+                             #:aws-service-name service-name)))
+
+    ;; For DynamoDB, the request can include any headers, but MUST
+    ;; include "host", "x-amz-date", "x-amz-target", "content-type",
+    ;; and "Authorization".  Except for the authorization header, the
+    ;; headers must be included in the canonical-headers and
+    ;; signed-headers values, as noted earlier.  Order here is not
+    ;; significant.
+    (cons `(authorization . (,(string->symbol %algorithm)
+                             (Credential . ,(string-append access-key "/" credential-scope))
+                             (SignedHeaders . ,signed-headers)
+                             (Signature . ,signature)))
+          (filter cdr headers))))
+
 (define* (make-operation->request api-metadata)
   "Return a procedure that accepts an operation and returns an HTTP request."
   (define endpoint-prefix
@@ -159,9 +263,6 @@ corresponding value in INPUT."
     (define access-key
       (or (%aws-access-key)
           (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable.")))
-    (define secret-key
-      (or (%aws-secret-access-key)
-          (error "No secret access key available.  Set the AWS_SECRET_ACCESS_KEY environment variable.")))
     (define method
       (assoc-ref http "method"))
     (define host
@@ -205,12 +306,6 @@ corresponding value in INPUT."
     (define payload-hash
       (hexify (sha256 (string->utf8 request-parameters))))
 
-    (define now (current-date 0))
-    (define amz-date
-      (date->string now "~Y~m~dT~H~M~SZ"))
-    (define date-stamp
-      (date->string now "~Y~m~d"))
-
     
     ;; https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     (define canonical-uri
@@ -223,78 +318,22 @@ corresponding value in INPUT."
       (filter cdr `((content-type . ,content-type)
                     (host         . (,host . #f))
                     (x-amz-content-sha256 . ,payload-hash)
-                    (x-amz-date   . ,amz-date)
                     (x-amz-target . ,amz-target))))
-    (define authorization-header
-      (let* ((canonical-headers
-              ;; Header names must be trimmed, lower-case, sorted in
-              ;; code point order from low to high!  Note: there must
-              ;; be a trailing newline character.
-              (string-join (map (match-lambda
-                                  ((key . value)
-                                   (string-append (symbol->string key) ":"
-                                                  (with-output-to-string
-                                                    (lambda ()
-                                                      ((header-writer key) value (current-output-port)))))))
-                                headers)
-                           "\n" 'suffix))
-             (signed-headers
-              ;; This lists the headers in the canonical-headers list,
-              ;; delimited with ";" and in alpha order.  The request
-              ;; can include any headers; canonical-headers and
-              ;; signed-headers include those that you want to be
-              ;; included in the hash of the request. "Host" and
-              ;; "x-amz-date" are always required.
-              (string-join (map (compose symbol->string first) headers) ";"))
-             ;; The query string is blank because parameters are passed
-             ;; in the body of the request.
-             (canonical-querystring "")
-             (canonical-request
-              (string-join (list method
-                                 canonical-uri
-                                 canonical-querystring
-                                 canonical-headers
-                                 signed-headers
-                                 payload-hash)
-                           "\n"))
-             (credential-scope
-              (string-join (list date-stamp
-                                 region
-                                 service-name
-                                 "aws4_request") "/"))
-             (string-to-sign
-              (string-join (list algorithm
-                                 amz-date
-                                 credential-scope
-                                 (hexify (sha256 (string->utf8 canonical-request))))
-                           "\n"))
-             (signature
-              (let* ((kdate       (sign (string->utf8 (string-append "AWS4" secret-key)) date-stamp))
-                     (kregion     (sign kdate region))
-                     (kservice    (sign kregion service-name))
-                     (signing-key (sign kservice "aws4_request")))
-                (hexify (sign signing-key string-to-sign)))))
-        `(,(string->symbol algorithm)
-          (Credential . ,(string-append access-key "/" credential-scope))
-          (SignedHeaders . ,signed-headers)
-          (Signature . ,signature))))
-
-    ;; For DynamoDB, the request can include any headers, but MUST
-    ;; include "host", "x-amz-date", "x-amz-target", "content-type",
-    ;; and "Authorization".  Except for the authorization header, the
-    ;; headers must be included in the canonical-headers and
-    ;; signed-headers values, as noted earlier.  Order here is not
-    ;; significant.
-    (define new-headers
-      (cons `(authorization . ,authorization-header)
-            (filter cdr headers)))
+    (define signed-headers
+      (sign-headers headers
+                    #:access-key access-key
+                    #:method method
+                    #:region region
+                    #:service-name service-name
+                    #:canonical-uri canonical-uri
+                    #:payload-hash payload-hash))
 
     (call-with-values
         (lambda ()
           (http-request (string-append endpoint canonical-uri)
                         #:method (string->symbol method)
                         #:body (string->utf8 request-parameters)
-                        #:headers new-headers))
+                        #:headers signed-headers))
       (lambda (response body)
         (let ((server-text (match body
                              ((? bytevector? bv)
