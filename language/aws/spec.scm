@@ -233,7 +233,7 @@ if this is not a primitive data type."
                  #:use-module (ice-9 match)
                  #:use-module (srfi srfi-1)
                  #:use-module (srfi srfi-9)
-                 #:use-module ((srfi srfi-19) #:select (date?))
+                 #:use-module ((srfi srfi-19) #:select (make-date date?))
                  #:use-module (srfi srfi-26)
                  #:use-module ((rnrs bytevectors) #:select (bytevector?)))
                (define-public api-documentation
