@@ -50,6 +50,7 @@ SOURCES = $(GUILE_SOURCES) $(JSON_SOURCES)
 TEST_EXTENSIONS = .scm
 
 SCM_TESTS = \
+  tests/request.scm \
   tests/serialize.scm
 
 TESTS = $(SCM_TESTS)
