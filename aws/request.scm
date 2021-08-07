@@ -52,11 +52,28 @@
   (make-parameter (or (getenv "AWS_DEFAULT_REGION")
                       "us-west-2")))
 
+(define %get-aws-default-region
+  (lambda ()
+    (or (getenv "AWS_DEFAULT_REGION")
+        (%aws-default-region))))
+
 (define %aws-access-key
   (make-parameter (getenv "AWS_ACCESS_KEY_ID")))
 
+(define %get-aws-access-key
+  (lambda ()
+    (or (%aws-secret-access-key)
+        (getenv "AWS_ACCESS_KEY_ID")
+        (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable."))))
+
 (define %aws-secret-access-key
   (make-parameter (getenv "AWS_SECRET_ACCESS_KEY")))
+
+(define %get-aws-secret-access-key
+  (lambda ()
+    (or (%aws-secret-access-key)
+        (getenv "AWS_SECRET_ACCESS_KEY")
+        (error "No secret access key available.  Set the AWS_SECRET_ACCESS_KEY environment variable."))))
 
 (define %algorithm "AWS4-HMAC-SHA256")
 
@@ -147,8 +164,8 @@ corresponding value in INPUT."
 
 (define* (compute-signature string-to-sign
                             #:key
-                            (aws-secret-key (%aws-secret-access-key))
-                            (aws-region (%aws-default-region))
+                            (aws-secret-key (%get-aws-secret-access-key))
+                            (aws-region (%get-aws-default-region))
                             aws-service-name)
   "Compute the AWS signature over STRING-TO-SIGN with the provided
 SECRET-KEY, and for the given AWS-SERVICE-NAME.  All arguments are
@@ -172,9 +189,9 @@ strings."
                        canonical-uri
                        payload-hash
                        service-name
-                       (region (%aws-default-region))
-                       (secret-key (%aws-secret-access-key))
-                       (access-key (%aws-access-key)))
+                       (region (%get-aws-default-region))
+                       (secret-key (%get-aws-secret-access-key))
+                       (access-key (%get-aws-access-key)))
   "Given a bunch of headers as an alist, return a new alist of headers
 that includes the authorization and x-amz-date headers.  This can be
 used for presigned URLs."
@@ -259,10 +276,8 @@ used for presigned URLs."
             http operation-name
             xml-namespace
             input)
-    (define region (%aws-default-region))
-    (define access-key
-      (or (%aws-access-key)
-          (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable.")))
+    (define region (%get-aws-default-region))
+    (define access-key (%get-aws-access-key))
     (define method
       (assoc-ref http "method"))
     (define host
