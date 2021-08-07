@@ -62,7 +62,7 @@
 
 (define %get-aws-access-key
   (lambda ()
-    (or (%aws-secret-access-key)
+    (or (%aws-access-key)
         (getenv "AWS_ACCESS_KEY_ID")
         (error "No access key available.  Set the AWS_ACCESS_KEY_ID environment variable."))))
 
