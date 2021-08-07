@@ -49,13 +49,13 @@
 ;;; Code:
 
 (define %aws-default-region
-  (make-parameter (or (getenv "AWS_DEFAULT_REGION")
-                      "us-west-2")))
+  (make-parameter (getenv "AWS_DEFAULT_REGION")))
 
 (define %get-aws-default-region
   (lambda ()
-    (or (getenv "AWS_DEFAULT_REGION")
-        (%aws-default-region))))
+    (or (%aws-default-region)
+        (getenv "AWS_DEFAULT_REGION")
+        "us-west-2")))
 
 (define %aws-access-key
   (make-parameter (getenv "AWS_ACCESS_KEY_ID")))
