@@ -205,8 +205,11 @@ used for presigned URLs."
          (amz-date (date->string now "~Y~m~dT~H~M~SZ"))
          (date-stamp (date->string now "~Y~m~d"))
          (headers
-          (cons `(x-amz-date . ,amz-date)
-                headers))
+          (sort (cons `(x-amz-date . ,amz-date)
+                      headers)
+                (lambda (a b)
+                  (string< (symbol->string (first a))
+                           (symbol->string (first b))))))
          (canonical-headers
           ;; Header names must be trimmed, lower-case, sorted in
           ;; code point order from low to high!  Note: there must
