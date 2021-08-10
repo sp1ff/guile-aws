@@ -182,6 +182,12 @@ strings."
          (signing-key (sign kservice "aws4_request")))
     (hexify (sign signing-key string-to-sign))))
 
+(define (credential-scope date-stamp region service-name)
+  (string-join (list date-stamp
+                     region
+                     service-name
+                     "aws4_request") "/"))
+
 (define* (sign-headers headers
                        #:key
                        (method "GET")
@@ -238,15 +244,14 @@ used for presigned URLs."
                              signed-headers
                              payload-hash)
                        "\n"))
-         (credential-scope
-          (string-join (list date-stamp
-                             region
-                             service-name
-                             "aws4_request") "/"))
+         (scope
+          (credential-scope date-stamp
+                            region
+                            service-name))
          (string-to-sign
           (string-join (list %algorithm
                              amz-date
-                             credential-scope
+                             scope
                              (hexify (sha256 (string->utf8 canonical-request))))
                        "\n"))
          (signature
@@ -262,7 +267,7 @@ used for presigned URLs."
     ;; signed-headers values, as noted earlier.  Order here is not
     ;; significant.
     (cons `(authorization . (,(string->symbol %algorithm)
-                             (Credential . ,(string-append access-key "/" credential-scope))
+                             (Credential . ,(string-append access-key "/" scope))
                              (SignedHeaders . ,signed-headers)
                              (Signature . ,signature)))
           (filter cdr headers))))
