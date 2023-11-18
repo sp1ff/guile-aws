@@ -36,6 +36,7 @@
             %aws-secret-access-key
 
             compute-signature
+            hexify
             sign-headers
             make-operation->request))
 
@@ -289,11 +290,12 @@ used for presigned URLs."
     (define method
       (assoc-ref http "method"))
     (define host
-      (or (assoc-ref api-metadata 'globalEndpoint)
-          (string-join (list endpoint-prefix
-                             region
-                             "amazonaws.com")
-                       ".")))
+            (or (assoc-ref api-metadata 'globalEndpoint)
+                (string-join (list endpoint-prefix
+                                   region
+                                   "amazonaws.com")
+                             ".")))
+
     (define endpoint
       (or (getenv "GUILE_AWS_DEBUG_ENDPOINT")
           (string-append "https://" host)))
@@ -329,13 +331,19 @@ used for presigned URLs."
     (define payload-hash
       (hexify (sha256 (string->utf8 request-parameters))))
 
-    
     ;; https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-    (define canonical-uri
+    (define uri
       (or (and=> (assoc-ref http "requestUri")
                  (lambda (format-string)
                    (parameterize-request-uri format-string input)))
           "/"))
+
+    (define uri-components (string-split uri #\?))
+    (define canonical-uri (list-ref uri-components 0))
+    (define canonical-querystring
+      (if (> (length uri-components) 1)
+          (list-ref uri-components 1)
+          ""))
 
     (define headers
       (filter cdr `((content-type . ,content-type)
@@ -349,11 +357,12 @@ used for presigned URLs."
                     #:region region
                     #:service-name service-name
                     #:canonical-uri canonical-uri
+                    #:canonical-querystring canonical-querystring
                     #:payload-hash payload-hash))
 
     (call-with-values
         (lambda ()
-          (http-request (string-append endpoint canonical-uri)
+          (http-request (string-append endpoint uri)
                         #:method (string->symbol method)
                         #:body (string->utf8 request-parameters)
                         #:headers signed-headers))
@@ -368,7 +377,7 @@ used for presigned URLs."
                  ('application/json . rest))
              (or (and=> server-text json-string->scm)
                  #true))
-            (('text/xml . rest)
+            ((or ('application/xml . rest) ('text/xml . rest))
              (or (and=> server-text xml->sxml)
                  #true))
             (_ server-text)))))))

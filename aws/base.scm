@@ -148,23 +148,23 @@
   (let ((proc
          (lambda args
            (let ((input*
-                  (match args
-                    ;; Accept a keyword list and pass it to the
-                    ;; appropriate constructor.
-                    (((? keyword?) . rest)
-                     (apply input-constructor args))
-                    ;; Otherwise type check the input
-                    ((input)
-                     (unless (eq? (aws-name input) input-type)
-                       (error (format #f "~a: input must be of type ~a: ~a~%"
-                                      name input-type input)))
-                     input)
-                    (() #false))))
-             ;; TODO: do something with the response!
-             (requester #:http http
-                        #:xml-namespace xml-namespace
-                        #:operation-name name
-                        #:input input*)))))
+                    (match args
+                      ;; Accept a keyword list and pass it to the
+                      ;; appropriate constructor.
+                      (((? keyword?) . rest)
+                       (apply input-constructor args))
+                      ;; Otherwise type check the input
+                      ((input)
+                       (unless (eq? (aws-name input) input-type)
+                         (error (format #f "~a: input must be of type ~a: ~a~%"
+                                        name input-type input)))
+                       input)
+                      (() #false))))
+               ;; TODO: do something with the response!
+               (requester #:http http
+                          #:xml-namespace xml-namespace
+                          #:operation-name name
+                          #:input input*)))))
     (set-procedure-property! proc 'documentation documentation)
     (set-procedure-property! proc 'name name)
     proc))
