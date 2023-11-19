@@ -1,3 +1,5 @@
+This is a "fork" of the original project, authored by Ricardo Wurmus at [[https://git.elephly.net/software/guile-aws][elephly]].
+
 Guile AWS is pre-alpha software.  At the very least it’s yet another demonstration that Guile’s compiler tower can be used to generate an embedded domain specific language from JSON specifications.
 
 Here is an example session to create an EFS and make it ready for mounting on an EC2 instance:

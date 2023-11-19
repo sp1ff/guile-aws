@@ -12,3 +12,4 @@ upstream-json-specs
 tests/*.log
 tests/*.trs
 test-suite.log
+aclocal.m4
